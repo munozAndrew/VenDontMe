@@ -8,7 +8,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavController
-import com.example.vendontme.core.Screen
+import com.example.vendontme.ui.navigation.Screen
 import com.example.vendontme.di.AppModule
 
 @Composable
@@ -74,7 +74,7 @@ fun SignInScreen(nav: NavController) {
 
             TextButton(
                 onClick = {
-                    nav.navigate(Screen.SignUp.route)
+                    nav.navigate(Screen.SignUp)
                 },
                 enabled = !vm.loading
             ) {

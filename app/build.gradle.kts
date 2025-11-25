@@ -11,8 +11,7 @@ plugins {
     alias(libs.plugins.android.application)
     alias(libs.plugins.kotlin.android)
     alias(libs.plugins.kotlin.compose)
-
-    kotlin("plugin.serialization") version "2.2.21"
+    id("org.jetbrains.kotlin.plugin.serialization")
 }
 
 android {
@@ -84,6 +83,7 @@ dependencies {
     implementation("io.ktor:ktor-client-android:3.3.1")
     implementation("io.ktor:ktor-client-core:3.3.1")
     implementation("io.github.jan-tennert.supabase:storage-kt")
-
+    implementation("androidx.navigation:navigation-compose:2.8.5")
+    implementation("org.jetbrains.kotlinx:kotlinx-serialization-json:1.7.3")
 
 }

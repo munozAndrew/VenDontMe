@@ -6,7 +6,7 @@ import androidx.compose.runtime.setValue
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import androidx.navigation.NavController
-import com.example.vendontme.core.Screen
+import com.example.vendontme.ui.navigation.Screen
 import com.example.vendontme.data.repository.AuthRepository
 import kotlinx.coroutines.launch
 
@@ -29,8 +29,8 @@ class AuthViewModel(
                 val result = authRepository.login(email, password)
 
                 if (result.isSuccess) {
-                    nav.navigate(Screen.Home.route) {
-                        popUpTo(Screen.SignIn.route) { inclusive = true }
+                    nav.navigate(Screen.Home) {
+                        popUpTo(Screen.SignIn) { inclusive = true }
                     }
                 } else {
                     error = result.exceptionOrNull()?.message
@@ -52,9 +52,8 @@ class AuthViewModel(
                 val result = authRepository.signup(email, password, username, displayName)
 
                 if (result.isSuccess) {
-                    // Navigate to sign in after successful signup
-                    nav.navigate(Screen.SignIn.route) {
-                        popUpTo(Screen.SignUp.route) { inclusive = true }
+                    nav.navigate(Screen.SignIn) {
+                        popUpTo(Screen.SignUp) { inclusive = true }
                     }
                 } else {
                     error = result.exceptionOrNull()?.message ?: "Sign up failed"
@@ -73,8 +72,8 @@ class AuthViewModel(
                 val user = authRepository.getCurrentUser()
 
                 if (user != null) {
-                    nav.navigate(Screen.Home.route) {
-                        popUpTo(Screen.SignIn.route) { inclusive = true }
+                    nav.navigate(Screen.Home) {
+                        popUpTo(Screen.SignIn) { inclusive = true }
                     }
                 }
             } catch (e: Exception) {
