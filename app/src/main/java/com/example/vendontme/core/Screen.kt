@@ -5,6 +5,10 @@ sealed class Screen(val route: String) {
     data object SignIn : Screen("sign_in")
     data object SignUp : Screen("sign_up")
     data object Welcome : Screen("welcome")
+
+    data object Friends : Screen("friends")
+
+
     data object Home : Screen("home")
     data object CreateGroup : Screen("create_group")
     data object GroupDetail : Screen("group_detail/{groupId}") {

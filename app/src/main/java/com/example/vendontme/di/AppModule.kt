@@ -6,8 +6,11 @@ import com.example.vendontme.core.SupabaseClient
 import com.example.vendontme.data.repository.AuthRepository
 import com.example.vendontme.data.repository.SupabaseAuthRepository
 import com.example.vendontme.data.repository.GroupRepository
+import com.example.vendontme.data.repository.SupabaseFriendRepository
 import com.example.vendontme.ui.auth.AuthViewModel
 import com.example.vendontme.ui.home.HomeViewModel
+import com.example.vendontme.data.repository.FriendRepository
+import com.example.vendontme.ui.friends.FriendViewModel
 
 object AppModule {
 
@@ -19,6 +22,7 @@ object AppModule {
     // Repositories (Singletons)
     private var authRepository: AuthRepository? = null
     private var groupRepository: GroupRepository? = null
+    private var friendRepository: FriendRepository? = null
 
     fun provideAuthRepository(): AuthRepository {
         if (authRepository == null) {
@@ -27,6 +31,12 @@ object AppModule {
         return authRepository!!
     }
 
+    fun provideFriendRepository(): FriendRepository {
+        if (friendRepository == null) {
+            friendRepository = SupabaseFriendRepository(supabaseClient)
+        }
+        return friendRepository!!
+    }
     fun provideGroupRepository(): GroupRepository {
         if (groupRepository == null) {
             groupRepository = GroupRepository()
@@ -56,6 +66,16 @@ object AppModule {
             groupRepository = provideGroupRepository(),
             authRepository = provideAuthRepository()
         )
+    }
+
+    fun provideFriendViewModelFactory(): ViewModelProvider.Factory {
+        val friendRepo = provideFriendRepository()
+        val authRepo = provideAuthRepository()
+        return object : ViewModelProvider.Factory {
+            override fun <T : ViewModel> create(modelClass: Class<T>): T {
+                return FriendViewModel(friendRepo, authRepo) as T
+            }
+        }
     }
 
     fun provideHomeViewModelFactory(): ViewModelProvider.Factory {

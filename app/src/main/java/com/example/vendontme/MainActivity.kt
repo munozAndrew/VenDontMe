@@ -10,6 +10,7 @@ import androidx.navigation.compose.composable
 import com.example.vendontme.core.Screen
 import com.example.vendontme.ui.auth.SignInScreen
 import com.example.vendontme.ui.auth.SignUpScreen
+import com.example.vendontme.ui.friends.FriendsScreen
 import com.example.vendontme.ui.groups.CreateGroupScreen
 import com.example.vendontme.ui.groups.GroupDetailScreen
 import com.example.vendontme.ui.home.HomeScreen
@@ -33,12 +34,11 @@ fun AppNavigation() {
         navController = nav,
         startDestination = Screen.SignIn.route
     ) {
-        // Auth screens
         composable(Screen.SignIn.route) { SignInScreen(nav) }
         composable(Screen.SignUp.route) { SignUpScreen(nav) }
         composable(Screen.Welcome.route) { WelcomeScreen(nav) }
+        composable(Screen.Friends.route) { FriendsScreen(nav) }
 
-        // Home screen
         composable(Screen.Home.route) {
             HomeScreen(
                 onGroupClick = { groupId ->
@@ -46,14 +46,22 @@ fun AppNavigation() {
                 },
                 onCreateGroupClick = {
                     nav.navigate(Screen.CreateGroup.route)
+                },
+                onFriendsClick = {
+                    nav.navigate(Screen.Friends.route)
                 }
             )
         }
+        composable(Screen.Friends.route) {
+            FriendsScreen(nav)
+        }
+
 
         // Group screens
         composable(Screen.CreateGroup.route) {
             CreateGroupScreen(nav)
         }
+
 
         composable(Screen.GroupDetail.route) { backStackEntry ->
             val groupId = backStackEntry.arguments?.getString("groupId")

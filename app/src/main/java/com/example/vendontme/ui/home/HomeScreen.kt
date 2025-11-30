@@ -5,6 +5,7 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
+import androidx.compose.material.icons.filled.Person
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -19,7 +20,9 @@ import com.example.vendontme.ui.home.components.GroupCard
 @Composable
 fun HomeScreen(
     onGroupClick: (String) -> Unit = {},
-    onCreateGroupClick: () -> Unit = {}
+    onCreateGroupClick: () -> Unit = {},
+    onFriendsClick: () -> Unit = {}
+
 ) {
     val viewModel: HomeViewModel = viewModel(
         factory = AppModule.provideHomeViewModelFactory()
@@ -27,8 +30,7 @@ fun HomeScreen(
 
     val uiState by viewModel.uiState.collectAsState()
 
-    // ✅ Reload groups every time HomeScreen is displayed
-    // This ensures the list updates when you come back from creating a group
+
     DisposableEffect(Unit) {
         viewModel.loadGroups()
         onDispose { }
@@ -37,7 +39,13 @@ fun HomeScreen(
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { Text("Split It") }
+                title = { Text("Split It") },
+                actions = {
+                    IconButton(onClick = onFriendsClick) {
+                        Icon(Icons.Default.Person, contentDescription = "Friends")
+                    }
+                }
+
             )
         },
         floatingActionButton = {
