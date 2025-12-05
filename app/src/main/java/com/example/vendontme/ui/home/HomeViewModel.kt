@@ -5,8 +5,8 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import com.example.vendontme.data.repository.GroupRepository
 import com.example.vendontme.data.repository.AuthRepository
+import com.example.vendontme.data.repository.GroupRepository
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.launch
@@ -39,28 +39,34 @@ class HomeViewModel(
                 return@launch
             }
 
-            try {
-                val groups = groupRepository.getGroupsForUser(userId)
+            val result = groupRepository.getGroupsForUser(userId)
 
-                _uiState.value = HomeUiState(
-                    isLoading = false,
-                    groups = groups.map { group ->
-                        GroupUi(
-                            id = group.id ?: "",
-                            name = group.name,
-                            description = group.description,
-                            avatarUrl = group.avatarUrl,
-                            membersCount = groupRepository.getMemberCount(group.id!!)
-                        )
-                    }
-                )
-            } catch (e: Exception) {
-                _uiState.value = HomeUiState(
-                    isLoading = false,
-                    groups = emptyList()
-                )
-                createError = e.message
+            if (result.isFailure) {
+                _uiState.value = HomeUiState(isLoading = false, groups = emptyList())
+                createError = result.exceptionOrNull()?.message
+                return@launch
             }
+
+            val groups = result.getOrNull() ?: emptyList()
+
+            // Fetch member counts
+            val groupUiList = groups.map { group ->
+                val countResult = groupRepository.getMemberCount(group.id ?: "")
+                val memberCount = countResult.getOrNull() ?: 0
+
+                GroupUi(
+                    id = group.id ?: "",
+                    name = group.name ?: "Unnamed Group",
+                    description = group.description,
+                    avatarUrl = group.avatarUrl,
+                    membersCount = memberCount
+                )
+            }
+
+            _uiState.value = HomeUiState(
+                isLoading = false,
+                groups = groupUiList
+            )
         }
     }
 
@@ -76,26 +82,28 @@ class HomeViewModel(
                 return@launch
             }
 
-            try {
-                // Create group and auto-add creator as admin
-                val group = groupRepository.createGroup(
-                    name = name,
-                    description = description,
-                    createdBy = userId
-                )
+            val result = groupRepository.createGroup(
+                name = name,
+                description = description,
+                createdBy = userId
+            )
 
-                // Reload groups to show the new one
-                loadGroups()
-
+            if (result.isFailure) {
+                createError = result.exceptionOrNull()?.message ?: "Failed to create group"
                 isCreatingGroup = false
-
-                // Navigate to the new group
-                onCreated(group.id ?: "")
-
-            } catch (e: Exception) {
-                createError = e.message ?: "Failed to create group"
-                isCreatingGroup = false
+                return@launch
             }
+
+            val createdGroup = result.getOrNull()
+            val groupId = createdGroup?.id ?: ""
+
+            // Refresh groups list
+            loadGroups()
+
+            isCreatingGroup = false
+
+            // Navigate to new group
+            onCreated(groupId)
         }
     }
 }

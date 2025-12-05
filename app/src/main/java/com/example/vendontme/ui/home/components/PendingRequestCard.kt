@@ -9,6 +9,8 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import com.example.vendontme.data.model.Friend
+import com.example.vendontme.data.model.getDisplayName
+import com.example.vendontme.data.model.getUsername
 
 @Composable
 fun PendingRequestCard(
@@ -38,7 +40,7 @@ fun PendingRequestCard(
                 modifier = Modifier.weight(1f)
             ) {
                 Text(
-                    text = "User ID: ${request.userId}",
+                    text = request.getDisplayName(),
                     style = MaterialTheme.typography.bodyLarge
                 )
                 Text(

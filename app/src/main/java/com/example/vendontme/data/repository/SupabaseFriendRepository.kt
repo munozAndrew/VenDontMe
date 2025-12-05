@@ -43,6 +43,7 @@ class SupabaseFriendRepository(
             }
 
             val friend = Friend(
+                id = java.util.UUID.randomUUID().toString(),
                 userId = currentUserId,
                 friendId = friendId,
                 status = "pending"
@@ -61,21 +62,28 @@ class SupabaseFriendRepository(
     override suspend fun acceptFriendRequest(friendshipId: String): Result<Friend> {
         return try {
             val updated = supabase.from("friends")
-                .update({
-                    set("status", "accepted")
-                }) {
-                    filter {
-                        eq("id", friendshipId)
-                    }
+                .update(
+                    mapOf("status" to "accepted")
+                ) {
+                    filter { eq("id", friendshipId) }
                     select()
                 }
-                .decodeSingle<Friend>()
+                .decodeList<Friend>()
+                .firstOrNull()
 
-            Result.success(updated)
+            if (updated == null) {
+                Result.failure(Exception("No row returned"))
+            } else {
+                Result.success(updated)
+            }
+
         } catch (e: Exception) {
             Result.failure(e)
         }
     }
+
+
+
 
     override suspend fun rejectFriendRequest(friendshipId: String): Result<Unit> {
         return try {
@@ -95,20 +103,20 @@ class SupabaseFriendRepository(
     override suspend fun blockUser(friendshipId: String): Result<Friend> {
         return try {
             val updated = supabase.from("friends")
-                .update({
-                    set("status", "blocked")
-                }) {
-                    filter {
-                        eq("id", friendshipId)
-                    }
+                .update(
+                    mapOf("status" to "blocked")
+                ) {
+                    filter { eq("id", friendshipId) }
                 }
                 .decodeSingle<Friend>()
 
             Result.success(updated)
+
         } catch (e: Exception) {
             Result.failure(e)
         }
     }
+
 
 
     override suspend fun getFriends(): Result<List<Friend>> {
@@ -128,7 +136,30 @@ class SupabaseFriendRepository(
                 }
                 .decodeList<Friend>()
 
-            Result.success(friends)
+            // Fetch profiles for each friend
+            val friendsWithProfiles = friends.map { friend ->
+                val friendUserId = if (friend.userId == currentUserId) {
+                    friend.friendId
+                } else {
+                    friend.userId
+                }
+
+                val profile = try {
+                    supabase.from("profiles")
+                        .select {
+                            filter {
+                                eq("id", friendUserId)
+                            }
+                        }
+                        .decodeSingleOrNull<Profile>()
+                } catch (e: Exception) {
+                    null
+                }
+
+                friend.copy(friendProfile = profile)
+            }
+
+            Result.success(friendsWithProfiles)
         } catch (e: Exception) {
             Result.failure(e)
         }
@@ -149,7 +180,24 @@ class SupabaseFriendRepository(
                 }
                 .decodeList<Friend>()
 
-            Result.success(requests)
+            // Fetch profiles for each requester
+            val requestsWithProfiles = requests.map { request ->
+                val profile = try {
+                    supabase.from("profiles")
+                        .select {
+                            filter {
+                                eq("id", request.userId)
+                            }
+                        }
+                        .decodeSingleOrNull<Profile>()
+                } catch (e: Exception) {
+                    null
+                }
+
+                request.copy(friendProfile = profile)
+            }
+
+            Result.success(requestsWithProfiles)
         } catch (e: Exception) {
             Result.failure(e)
         }
@@ -170,7 +218,24 @@ class SupabaseFriendRepository(
                 }
                 .decodeList<Friend>()
 
-            Result.success(requests)
+            // Fetch profiles for each recipient
+            val requestsWithProfiles = requests.map { request ->
+                val profile = try {
+                    supabase.from("profiles")
+                        .select {
+                            filter {
+                                eq("id", request.friendId)
+                            }
+                        }
+                        .decodeSingleOrNull<Profile>()
+                } catch (e: Exception) {
+                    null
+                }
+
+                request.copy(friendProfile = profile)
+            }
+
+            Result.success(requestsWithProfiles)
         } catch (e: Exception) {
             Result.failure(e)
         }

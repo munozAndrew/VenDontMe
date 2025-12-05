@@ -13,8 +13,10 @@ data class GroupMember(
     @SerialName("user_id")
     val userId: String,
 
-    val role: String? = "member",
+    val role: String,
 
     @SerialName("joined_at")
-    val joinedAt: String? = null
+    val joinedAt: String? = null,
+
+    val profile: Profile? = null
 )

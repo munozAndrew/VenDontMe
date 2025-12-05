@@ -5,11 +5,14 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.example.vendontme.data.model.GroupMember
+import com.example.vendontme.data.model.Profile
 import com.example.vendontme.data.model.Receipt
 import com.example.vendontme.data.model.ReceiptItem
-import com.example.vendontme.data.repository.ReceiptRepository
 import com.example.vendontme.data.repository.GroupRepository
+import com.example.vendontme.data.repository.ReceiptRepository
 import kotlinx.coroutines.launch
+import java.util.UUID
 
 data class ReceiptDetailUiState(
     val receipt: Receipt? = null,
@@ -17,7 +20,7 @@ data class ReceiptDetailUiState(
     val editableItems: List<EditableReceiptItem> = emptyList(),
     val editableDescription: String = "",
     val groupMembers: List<GroupMemberUi> = emptyList(),
-    val itemAssignments: Map<Int, List<String>> = emptyMap(), // itemIndex -> List of userIds
+    val itemAssignments: Map<Int, List<String>> = emptyMap(),
     val calculatedTotal: Double = 0.0,
     val isLoading: Boolean = false,
     val error: String? = null
@@ -56,19 +59,18 @@ class ReceiptDetailViewModel(
 
                 println("DEBUG: Loading receipt details for $receiptId")
 
-                // Load receipt and items
                 val receiptResult = receiptRepository.getReceiptById(receiptId)
                 if (receiptResult.isFailure) {
                     throw receiptResult.exceptionOrNull() ?: Exception("Failed to load receipt")
                 }
 
                 val receipt = receiptResult.getOrThrow()
+
                 val itemsResult = receiptRepository.getItemsForReceipt(receiptId)
                 val items = itemsResult.getOrNull() ?: emptyList()
 
                 println("DEBUG: Loaded receipt with ${items.size} items")
 
-                // Convert to editable format
                 val editableItems = items.map { item ->
                     EditableReceiptItem(
                         id = item.id,
@@ -78,13 +80,31 @@ class ReceiptDetailViewModel(
                     )
                 }
 
-                // Load group members (mock for now)
-                val groupMembers = listOf(
-                    GroupMemberUi("user1", "Anthony", "Anthony"),
-                    GroupMemberUi("user2", "Friend", "friend123")
-                )
+                val groupMembers: List<GroupMemberUi> = try {
+                    val membersResult = groupRepository.getGroupMembers(receipt.groupId)
+                    membersResult.fold(
+                        onSuccess = { pairs ->
+                            pairs.map { pair: Pair<GroupMember, Profile> ->
+                                val member = pair.first
+                                val profile = pair.second
+                                GroupMemberUi(
+                                    id = member.userId,
+                                    displayName = profile.displayName
+                                        ?: profile.username
+                                        ?: "Unknown",
+                                    username = profile.username ?: "unknown"
+                                )
+                            }
+                        },
+                        onFailure = {
+                            emptyList()
+                        }
+                    )
+                } catch (e: Exception) {
+                    println("DEBUG: Failed to load group members for receipt: ${e.message}")
+                    emptyList()
+                }
 
-                // Calculate total
                 val total = editableItems.sumOf {
                     (it.price.toDoubleOrNull() ?: 0.0) * (it.quantity.toIntOrNull() ?: 1)
                 }
@@ -204,26 +224,58 @@ class ReceiptDetailViewModel(
         viewModelScope.launch {
             try {
                 println("DEBUG: Saving changes...")
+                uiState = uiState.copy(isLoading = true, error = null)
 
-                // Update receipt description
                 val receipt = uiState.receipt ?: return@launch
 
-                // Update items
-                // TODO: Implement actual save to database
+                val updatedReceipt = receipt.copy(
+                    description = uiState.editableDescription,
+                    totalAmount = uiState.calculatedTotal
+                )
 
-                println("DEBUG: Changes saved successfully")
+                val updateReceiptResult = receiptRepository.updateReceipt(updatedReceipt)
+                if (updateReceiptResult.isFailure) {
+                    throw updateReceiptResult.exceptionOrNull() ?: Exception("Failed to update receipt")
+                }
 
+                println("DEBUG: Receipt updated successfully")
+
+                uiState.editableItems.forEach { editableItem ->
+                    if (editableItem.id.isNotEmpty()) {
+                        if (editableItem.name.isNotBlank() && editableItem.price.isNotBlank()) {
+                            val updatedItem = ReceiptItem(
+                                id = editableItem.id,
+                                receiptId = receiptId,
+                                name = editableItem.name,
+                                price = editableItem.price.toDoubleOrNull() ?: 0.0,
+                                quantity = editableItem.quantity.toIntOrNull() ?: 1
+                            )
+
+                            val updateResult = receiptRepository.updateReceiptItem(updatedItem)
+                            if (updateResult.isSuccess) {
+                                println("DEBUG: Updated item ${editableItem.id}")
+                            }
+                        }
+                    }
+                }
+
+                println("DEBUG: All changes saved successfully")
+
+                kotlinx.coroutines.delay(300)
                 loadReceiptDetails()
 
             } catch (e: Exception) {
                 println("DEBUG: Error saving - ${e.message}")
-                uiState = uiState.copy(error = e.message ?: "Failed to save")
+                e.printStackTrace()
+                uiState = uiState.copy(
+                    isLoading = false,
+                    error = e.message ?: "Failed to save"
+                )
             }
         }
     }
 
     fun cancelEdit() {
-        // Reload original data
         loadReceiptDetails()
     }
 }

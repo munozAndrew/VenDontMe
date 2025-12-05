@@ -31,8 +31,6 @@ interface ReceiptRepository {
     ): Result<Unit>
 
     suspend fun getReceiptsForGroup(groupId: String): Result<List<Receipt>>
-
-    // NEW METHODS
     suspend fun getReceiptById(receiptId: String): Result<Receipt>
     suspend fun getItemsForReceipt(receiptId: String): Result<List<ReceiptItem>>
     suspend fun updateReceipt(receipt: Receipt): Result<Unit>
@@ -121,23 +119,27 @@ class SupabaseReceiptRepository(
                 }
                 .decodeList<Receipt>()
 
+            println("DEBUG: Fetched ${receipts.size} receipts for group $groupId")
             Result.success(receipts)
         } catch (e: Exception) {
+            println("DEBUG: Failed to fetch receipts - ${e.message}")
             Result.failure(e)
         }
     }
 
     override suspend fun getReceiptById(receiptId: String): Result<Receipt> {
         return try {
+            println("DEBUG: Fetching receipt $receiptId from database...")
+
             val receipt = postgrest["receipts"]
                 .select {
                     filter {
                         eq("id", receiptId)
                     }
-                    single()
                 }
-                .decodeAs<Receipt>()
+                .decodeSingle<Receipt>()
 
+            println("DEBUG: Fetched receipt - description: ${receipt.description}, total: ${receipt.totalAmount}")
             Result.success(receipt)
         } catch (e: Exception) {
             println("DEBUG: getReceiptById error - ${e.message}")
@@ -147,6 +149,8 @@ class SupabaseReceiptRepository(
 
     override suspend fun getItemsForReceipt(receiptId: String): Result<List<ReceiptItem>> {
         return try {
+            println("DEBUG: Fetching items for receipt $receiptId from database...")
+
             val items = postgrest["receipt_items"]
                 .select {
                     filter {
@@ -154,6 +158,11 @@ class SupabaseReceiptRepository(
                     }
                 }
                 .decodeList<ReceiptItem>()
+
+            println("DEBUG: Fetched ${items.size} items")
+            items.forEachIndexed { index, item ->
+                println("DEBUG: Item $index - name: ${item.name}, price: ${item.price}, qty: ${item.quantity}")
+            }
 
             Result.success(items)
         } catch (e: Exception) {
@@ -164,43 +173,49 @@ class SupabaseReceiptRepository(
 
     override suspend fun updateReceipt(receipt: Receipt): Result<Unit> {
         return try {
-            postgrest["receipts"]
-                .update({
-                    set("description", receipt.description)
-                    set("total_amount", receipt.totalAmount)
-                }) {
-                    filter {
-                        eq("id", receipt.id)
-                    }
-                }
+            println("DEBUG: Updating receipt ${receipt.id}")
+            println("DEBUG: New description: '${receipt.description}'")
+            println("DEBUG: New total: ${receipt.totalAmount}")
 
+            // Use upsert with onConflict
+            postgrest["receipts"].upsert(receipt) {
+                // Specify which column has the unique constraint
+                onConflict = "id"
+            }
+
+            println("DEBUG: Successfully upserted receipt ${receipt.id}")
             Result.success(Unit)
         } catch (e: Exception) {
+            println("DEBUG: Failed to update receipt - ${e.message}")
+            e.printStackTrace()
             Result.failure(e)
         }
     }
 
     override suspend fun updateReceiptItem(item: ReceiptItem): Result<Unit> {
         return try {
-            postgrest["receipt_items"]
-                .update({
-                    set("name", item.name)
-                    set("price", item.price)
-                    set("quantity", item.quantity)
-                }) {
-                    filter {
-                        eq("id", item.id)
-                    }
-                }
+            println("DEBUG: Updating item ${item.id}")
+            println("DEBUG: New name: '${item.name}', price: ${item.price}, qty: ${item.quantity}")
 
+            // Use upsert with onConflict
+            postgrest["receipt_items"].upsert(item) {
+                // Specify which column has the unique constraint
+                onConflict = "id"
+            }
+
+            println("DEBUG: Successfully upserted item ${item.id}")
             Result.success(Unit)
         } catch (e: Exception) {
+            println("DEBUG: Failed to update item - ${e.message}")
+            e.printStackTrace()
             Result.failure(e)
         }
     }
 
     override suspend fun deleteReceiptItem(itemId: String): Result<Unit> {
         return try {
+            println("DEBUG: Deleting item $itemId")
+
             postgrest["receipt_items"]
                 .delete {
                     filter {
@@ -208,8 +223,11 @@ class SupabaseReceiptRepository(
                     }
                 }
 
+            println("DEBUG: Successfully deleted item $itemId")
             Result.success(Unit)
         } catch (e: Exception) {
+            println("DEBUG: Failed to delete item - ${e.message}")
+            e.printStackTrace()
             Result.failure(e)
         }
     }

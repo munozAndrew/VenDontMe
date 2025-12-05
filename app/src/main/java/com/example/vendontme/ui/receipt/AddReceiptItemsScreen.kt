@@ -20,6 +20,7 @@ import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavController
 import coil.compose.rememberAsyncImagePainter
+import com.example.vendontme.core.Screen
 import com.example.vendontme.di.AppModule
 
 data class ReceiptItemInput(
@@ -89,8 +90,11 @@ fun AddReceiptItemsScreen(
                                 totalAmount = totalAmount,
                                 description = description,
                                 onSuccess = {
-                                    navController.popBackStack()
-                                    navController.popBackStack()
+                                    // Pop back to group detail (skip the capture screen)
+                                    navController.popBackStack(
+                                        route = Screen.GroupDetail.route,
+                                        inclusive = false
+                                    )
                                 }
                             )
                         },

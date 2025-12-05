@@ -5,17 +5,21 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.example.vendontme.data.model.GroupMember
+import com.example.vendontme.data.model.Profile
 import com.example.vendontme.data.model.Receipt
 import com.example.vendontme.data.repository.GroupRepository
 import com.example.vendontme.data.repository.ReceiptRepository
 import kotlinx.coroutines.launch
 
+
 data class GroupDetailUiState(
     val group: GroupUi? = null,
     val members: List<MemberUi> = emptyList(),
-    val receipts: List<Receipt> = emptyList(),  // Changed from ReceiptUi to Receipt
+    val receipts: List<Receipt> = emptyList(),
     val isLoading: Boolean = false,
-    val error: String? = null
+    val error: String? = null,
+    val successMessage: String? = null
 )
 
 data class GroupUi(
@@ -25,9 +29,10 @@ data class GroupUi(
 )
 
 data class MemberUi(
-    val id: String,
+    val userId: String,
     val displayName: String,
     val username: String,
+    val avatarUrl: String?,
     val role: String
 )
 
@@ -41,56 +46,121 @@ class GroupDetailViewModel(
         private set
 
     init {
+        loadAll()
+    }
+
+    // Load everything
+    fun loadAll() {
         loadGroupDetails()
         loadReceipts()
     }
 
     fun loadGroupDetails() {
         viewModelScope.launch {
-            uiState = uiState.copy(isLoading = true, error = null)
+            try {
+                uiState = uiState.copy(isLoading = true, error = null, successMessage = null)
 
-            // Mock group data (replace with actual repository call)
-            val mockGroup = GroupUi(
-                id = groupId,
-                name = "Group Name",
-                description = "Group description"
-            )
+                val groupResult = groupRepository.getGroupById(groupId)
+                val group = groupResult.getOrElse {
+                    uiState = uiState.copy(
+                        isLoading = false,
+                        error = it.message ?: "Failed to load group"
+                    )
+                    return@launch
+                }
 
-            val mockMembers = listOf(
-                MemberUi(
-                    id = "1",
-                    displayName = "Anthony",
-                    username = "Anthony",
-                    role = "admin"
+                val groupUi = GroupUi(
+                    id = group.id ?: "",
+                    name = group.name ?: "Unnamed Group",
+                    description = group.description
                 )
-            )
 
-            uiState = uiState.copy(
-                group = mockGroup,
-                members = mockMembers,
-                isLoading = false
-            )
-        }
-    }
+                val membersResult = groupRepository.getGroupMembers(groupId)
 
-    fun loadReceipts() {
-        viewModelScope.launch {
-            println("DEBUG: Loading receipts for group $groupId")
+                val members = membersResult.fold(
+                    onSuccess = { pairs ->
+                        pairs.map { (member: GroupMember, profile: Profile) ->
+                            MemberUi(
+                                userId = member.userId,
+                                displayName = profile.displayName ?: profile.username ?: "Unknown",
+                                username = profile.username ?: "unknown",
+                                avatarUrl = profile.avatarUrl,
+                                role = member.role ?: "member"
+                            )
+                        }
+                    },
+                    onFailure = {
+                        emptyList()
+                    }
+                )
 
-            val result = receiptRepository.getReceiptsForGroup(groupId)
+                uiState = uiState.copy(
+                    group = groupUi,
+                    members = members,
+                    isLoading = false
+                )
 
-            if (result.isSuccess) {
-                val receipts = result.getOrNull() ?: emptyList()
-                println("DEBUG: Loaded ${receipts.size} receipts")
-
-                uiState = uiState.copy(receipts = receipts)
-            } else {
-                println("DEBUG: Failed to load receipts - ${result.exceptionOrNull()?.message}")
+            } catch (e: Exception) {
+                uiState = uiState.copy(
+                    isLoading = false,
+                    error = e.message ?: "Unexpected error loading group"
+                )
             }
         }
     }
 
-    fun refreshReceipts() {
-        loadReceipts()
+
+    fun loadReceipts() {
+        viewModelScope.launch {
+            val result = receiptRepository.getReceiptsForGroup(groupId)
+            uiState = uiState.copy(receipts = result.getOrNull() ?: emptyList())
+        }
+    }
+
+    fun refreshReceipts() = loadReceipts()
+
+
+    fun addMember(userId: String) {
+        viewModelScope.launch {
+            uiState = uiState.copy(isLoading = true, error = null, successMessage = null)
+
+            val result = groupRepository.addMember(groupId, userId)
+
+            if (result.isSuccess) {
+                val (groupMember, profile) = result.getOrThrow()
+
+                // Build new MemberUi entry
+                val newMemberUi = MemberUi(
+                    userId = groupMember.userId,
+                    displayName = profile.displayName ?: profile.username ?: "Unknown",
+                    username = profile.username ?: "unknown",
+                    avatarUrl = profile.avatarUrl,
+                    role = groupMember.role ?: "member"
+                )
+
+                // Append to existing list without refetching the whole group
+                val updatedMembers = uiState.members + newMemberUi
+
+                uiState = uiState.copy(
+                    members = updatedMembers,
+                    isLoading = false,
+                    successMessage = "Member added successfully!"
+                )
+
+            } else {
+                uiState = uiState.copy(
+                    isLoading = false,
+                    error = result.exceptionOrNull()?.message ?: "Failed to add member"
+                )
+            }
+        }
+    }
+
+    fun clearError() {
+        uiState = uiState.copy(error = null)
+    }
+
+    fun clearSuccess() {
+        uiState = uiState.copy(successMessage = null)
     }
 }

@@ -42,9 +42,12 @@ fun FriendCard(
                 modifier = Modifier.weight(1f)
             ) {
                 Text(
-                    text = "Friend ID: ${friend.friendId}",
+                    text = friend.friendProfile?.displayName
+                        ?: friend.friendProfile?.username
+                        ?: "Unknown User",
                     style = MaterialTheme.typography.bodyLarge
                 )
+
                 Text(
                     text = "Status: ${friend.status}",
                     style = MaterialTheme.typography.bodySmall,
@@ -79,12 +82,7 @@ fun FriendCard(
             title = { Text("Remove Friend") },
             text = { Text("Are you sure you want to remove this friend?") },
             confirmButton = {
-                TextButton(
-                    onClick = {
-                        showConfirmDialog = false
-                        onRemove()
-                    }
-                ) {
+                TextButton(onClick = { showConfirmDialog = false; onRemove() }) {
                     Text("Remove")
                 }
             },
