@@ -2,21 +2,29 @@ package com.example.vendontme.ui.groups
 
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Add
-import androidx.compose.material.icons.filled.ArrowBack
+import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavController
+import coil.compose.AsyncImage
 import com.example.vendontme.R
-import com.example.vendontme.data.repository.GroupRepository
+import com.example.vendontme.core.Screen
+import com.example.vendontme.data.model.Receipt
 import com.example.vendontme.di.AppModule
+import java.text.SimpleDateFormat
+import java.util.*
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -24,13 +32,9 @@ fun GroupDetailScreen(
     navController: NavController,
     groupId: String
 ) {
-    // Create ViewModel manually since we need to pass groupId
-    val viewModel = remember(groupId) {
-        GroupDetailViewModel(
-            groupRepository = AppModule.provideGroupRepository(),
-            groupId = groupId
-        )
-    }
+    val viewModel: GroupDetailViewModel = viewModel(
+        factory = AppModule.provideGroupDetailViewModelFactory(groupId)
+    )
 
     val uiState = viewModel.uiState
 
@@ -42,10 +46,14 @@ fun GroupDetailScreen(
                 },
                 navigationIcon = {
                     IconButton(onClick = { navController.popBackStack() }) {
-                        Icon(Icons.Default.ArrowBack, "Back")
+                        Icon(Icons.AutoMirrored.Filled.ArrowBack, "Back")
                     }
                 },
                 actions = {
+                    // Refresh button
+                    IconButton(onClick = { viewModel.refreshReceipts() }) {
+                        Icon(Icons.Default.Refresh, "Refresh")
+                    }
                     IconButton(onClick = { /* TODO: Settings */ }) {
                         Icon(Icons.Default.Settings, "Settings")
                     }
@@ -55,7 +63,7 @@ fun GroupDetailScreen(
         floatingActionButton = {
             FloatingActionButton(
                 onClick = {
-                    // TODO: Navigate to camera/scan receipt
+                    navController.navigate(Screen.CaptureReceipt.pass(groupId))
                 }
             ) {
                 Row(
@@ -72,7 +80,6 @@ fun GroupDetailScreen(
             }
         }
     ) { padding ->
-
         Box(
             modifier = Modifier
                 .fillMaxSize()
@@ -108,6 +115,7 @@ fun GroupDetailScreen(
                 else -> {
                     GroupDetailContent(
                         uiState = uiState,
+                        navController = navController,
                         onAddMember = { /* TODO */ }
                     )
                 }
@@ -119,6 +127,7 @@ fun GroupDetailScreen(
 @Composable
 fun GroupDetailContent(
     uiState: GroupDetailUiState,
+    navController: NavController,
     onAddMember: () -> Unit
 ) {
     LazyColumn(
@@ -127,7 +136,7 @@ fun GroupDetailContent(
         verticalArrangement = Arrangement.spacedBy(16.dp)
     ) {
 
-        // Group Description (if exists)
+        // Description
         if (!uiState.group?.description.isNullOrBlank()) {
             item {
                 Card(
@@ -143,7 +152,7 @@ fun GroupDetailContent(
                         )
                         Spacer(Modifier.height(4.dp))
                         Text(
-                            uiState.group?.description ?: "",
+                            uiState.group?.description.orEmpty(),
                             style = MaterialTheme.typography.bodyMedium
                         )
                     }
@@ -151,7 +160,7 @@ fun GroupDetailContent(
             }
         }
 
-        // Members Section
+        // Members header
         item {
             Row(
                 modifier = Modifier.fillMaxWidth(),
@@ -169,7 +178,7 @@ fun GroupDetailContent(
             }
         }
 
-        // Members List
+        // Members list
         item {
             Card(
                 modifier = Modifier.fillMaxWidth()
@@ -194,7 +203,6 @@ fun GroupDetailContent(
 
                     Spacer(Modifier.height(12.dp))
 
-                    // Member items
                     uiState.members.forEachIndexed { index, member ->
                         if (index > 0) {
                             HorizontalDivider(modifier = Modifier.padding(vertical = 8.dp))
@@ -205,53 +213,32 @@ fun GroupDetailContent(
             }
         }
 
-        // Recent Receipts Section
+        // Recent receipts header
         item {
             Text(
-                "Recent Receipts",
+                "Recent Receipts (${uiState.receipts.size})",
                 style = MaterialTheme.typography.titleMedium,
                 fontWeight = FontWeight.Bold
             )
         }
 
-        // Empty state for receipts
-        item {
-            Card(
-                modifier = Modifier.fillMaxWidth()
-            ) {
-                Box(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(48.dp),
-                    contentAlignment = Alignment.Center
-                ) {
-                    Column(
-                        horizontalAlignment = Alignment.CenterHorizontally
-                    ) {
-                        Icon(
-                            painter = painterResource(id = R.drawable.description),
-                            contentDescription = null,
-                            modifier = Modifier.size(48.dp),
-                            tint = MaterialTheme.colorScheme.primary.copy(alpha = 0.6f)
-                        )
-                        Spacer(Modifier.height(16.dp))
-                        Text(
-                            "No receipts yet",
-                            style = MaterialTheme.typography.bodyLarge,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant
-                        )
-                        Spacer(Modifier.height(8.dp))
-                        Text(
-                            "Tap \"New Split\" to scan a receipt",
-                            style = MaterialTheme.typography.bodySmall,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant
-                        )
+        // Receipts list or empty state
+        if (uiState.receipts.isEmpty()) {
+            item {
+                EmptyReceiptsCard()
+            }
+        } else {
+            items(uiState.receipts) { receipt ->
+                ReceiptCard(
+                    receipt = receipt,
+                    onClick = {
+                        navController.navigate(Screen.ReceiptDetail.pass(receipt.id))
                     }
-                }
+                )
             }
         }
 
-        // Add space at bottom for FAB
+        // Bottom spacer for FAB
         item {
             Spacer(Modifier.height(80.dp))
         }
@@ -269,7 +256,6 @@ fun MemberItem(member: MemberUi) {
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.spacedBy(12.dp)
         ) {
-            // Avatar placeholder
             Surface(
                 modifier = Modifier.size(40.dp),
                 shape = MaterialTheme.shapes.medium,
@@ -284,7 +270,6 @@ fun MemberItem(member: MemberUi) {
                 }
             }
 
-            // Name and username
             Column {
                 Text(
                     member.displayName,
@@ -300,7 +285,6 @@ fun MemberItem(member: MemberUi) {
             }
         }
 
-        // Admin badge
         if (member.role == "admin") {
             Surface(
                 color = MaterialTheme.colorScheme.primary,
@@ -312,6 +296,101 @@ fun MemberItem(member: MemberUi) {
                     style = MaterialTheme.typography.labelSmall,
                     color = MaterialTheme.colorScheme.onPrimary
                 )
+            }
+        }
+    }
+}
+
+@Composable
+fun EmptyReceiptsCard() {
+    Card(
+        modifier = Modifier.fillMaxWidth()
+    ) {
+        Box(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(48.dp),
+            contentAlignment = Alignment.Center
+        ) {
+            Column(
+                horizontalAlignment = Alignment.CenterHorizontally
+            ) {
+                Icon(
+                    painter = painterResource(id = R.drawable.description),
+                    contentDescription = null,
+                    modifier = Modifier.size(48.dp),
+                    tint = MaterialTheme.colorScheme.primary.copy(alpha = 0.6f)
+                )
+                Spacer(Modifier.height(16.dp))
+                Text(
+                    "No receipts yet",
+                    style = MaterialTheme.typography.bodyLarge,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+                Spacer(Modifier.height(8.dp))
+                Text(
+                    "Tap \"New Split\" to scan a receipt",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+            }
+        }
+    }
+}
+
+@Composable
+fun ReceiptCard(
+    receipt: Receipt,
+    onClick: () -> Unit
+) {
+    Card(
+        modifier = Modifier.fillMaxWidth(),
+        onClick = onClick
+    ) {
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(16.dp),
+            horizontalArrangement = Arrangement.spacedBy(12.dp)
+        ) {
+            // Receipt image thumbnail
+            AsyncImage(
+                model = receipt.imageUrl,
+                contentDescription = "Receipt",
+                modifier = Modifier
+                    .size(80.dp),
+                contentScale = ContentScale.Crop
+            )
+
+            // Receipt details
+            Column(
+                modifier = Modifier.weight(1f)
+            ) {
+                Text(
+                    receipt.description ?: "Receipt",
+                    style = MaterialTheme.typography.titleMedium,
+                    fontWeight = FontWeight.Bold
+                )
+
+                Spacer(Modifier.height(4.dp))
+
+                Text(
+                    "$${String.format(Locale.US, "%.2f", receipt.totalAmount)}",
+                    style = MaterialTheme.typography.titleLarge,
+                    color = MaterialTheme.colorScheme.primary,
+                    fontWeight = FontWeight.Bold
+                )
+
+                Spacer(Modifier.height(4.dp))
+
+                // Format date
+                receipt.createdAt?.let {
+                    Text(
+                        "Recent",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
             }
         }
     }

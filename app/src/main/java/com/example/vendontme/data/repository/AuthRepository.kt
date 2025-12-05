@@ -12,9 +12,7 @@ interface AuthRepository {
 
     suspend fun isUserLoggedIn(): Boolean
 
-    // Returns the Supabase auth user's ID, or null if not logged in
     fun getCurrentUserId(): String?
 
-    // Returns the Profile object for the current user, or null if not logged in
     suspend fun getCurrentUser(): Profile?
 }

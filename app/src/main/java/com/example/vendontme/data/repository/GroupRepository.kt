@@ -11,10 +11,9 @@ class GroupRepository {
 
     private val postgrest = SupabaseClient.client.postgrest
 
-    /**
-     * Create a new group and automatically add the creator as admin
-     * Returns the created group
-     */
+
+     //Create a new group and automatically add the creator as admin
+     //Returns the created group
     suspend fun createGroup(name: String, description: String?, createdBy: String): Group {
         // 1. Create the group
         val newGroup = Group(
@@ -39,9 +38,8 @@ class GroupRepository {
         return newGroup
     }
 
-    /**
-     * Get all groups that a user is a member of
-     */
+    //Get all groups that a user is a member of
+
     suspend fun getGroupsForUser(userId: String): List<Group> {
         // Query: SELECT * FROM groups WHERE id IN (
         //   SELECT group_id FROM group_members WHERE user_id = userId
@@ -68,9 +66,8 @@ class GroupRepository {
             .decodeList<Group>()
     }
 
-    /**
-     * Get a specific group by ID
-     */
+     // Get a specific group by ID
+
     suspend fun getGroupById(groupId: String): Group? {
         return postgrest["groups"]
             .select {
@@ -81,9 +78,9 @@ class GroupRepository {
             .decodeSingleOrNull<Group>()
     }
 
-    /**
-     * Get all members of a group with their profiles
-     */
+
+     //Get all members of a group with their profiles
+
     suspend fun getGroupMembers(groupId: String): List<Pair<GroupMember, Profile>> {
         // Get group_members for this group
         val members = postgrest["group_members"]
@@ -114,9 +111,8 @@ class GroupRepository {
         }
     }
 
-    /**
-     * Get member count for a group
-     */
+    //Get member count for a group
+
     suspend fun getMemberCount(groupId: String): Int {
         val members = postgrest["group_members"]
             .select {
@@ -129,9 +125,8 @@ class GroupRepository {
         return members.size
     }
 
-    /**
-     * Check if user is admin of a group
-     */
+    //Check if user is admin of a group
+
     suspend fun isUserAdmin(groupId: String, userId: String): Boolean {
         val member = postgrest["group_members"]
             .select {
@@ -145,9 +140,8 @@ class GroupRepository {
         return member?.role == "admin"
     }
 
-    /**
-     * Add a member to a group (default role: "member")
-     */
+    //Add a member to a group (default role: "member")
+
     suspend fun addMember(groupId: String, userId: String, role: String = "member"): GroupMember {
         val newMember = GroupMember(
             id = UUID.randomUUID().toString(),
@@ -161,9 +155,8 @@ class GroupRepository {
         return newMember
     }
 
-    /**
-     * Remove a member from a group
-     */
+    //Remove a member from a group
+
     suspend fun removeMember(groupId: String, userId: String) {
         postgrest["group_members"].delete {
             filter {
@@ -173,9 +166,7 @@ class GroupRepository {
         }
     }
 
-    /**
-     * Update member role (promote to admin, demote to member)
-     */
+    //Update member role (promote to admin, demote to member)
     suspend fun updateMemberRole(groupId: String, userId: String, newRole: String) {
         // Fetch the member
         val member = postgrest["group_members"]
@@ -197,9 +188,8 @@ class GroupRepository {
         }
     }
 
-    /**
-     * Update group details (name, description, avatar)
-     */
+    //Update group details (name, description, avatar)
+
     suspend fun updateGroup(groupId: String, name: String?, description: String?, avatarUrl: String?) {
         val group = getGroupById(groupId) ?: return
 
@@ -216,9 +206,8 @@ class GroupRepository {
         }
     }
 
-    /**
-     * Delete a group (will cascade delete members via RLS)
-     */
+    //Delete a group (will cascade delete members via RLS)
+
     suspend fun deleteGroup(groupId: String) {
         postgrest["groups"].delete {
             filter {

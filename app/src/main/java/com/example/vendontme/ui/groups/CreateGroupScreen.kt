@@ -66,7 +66,6 @@ fun CreateGroupScreen(nav: NavController) {
 
             Spacer(Modifier.weight(1f))
 
-            // Error message
             homeViewModel.createError?.let { error ->
                 Text(
                     text = error,
@@ -74,8 +73,6 @@ fun CreateGroupScreen(nav: NavController) {
                     style = MaterialTheme.typography.bodySmall
                 )
             }
-
-            // Create button
             Button(
                 onClick = {
                     if (groupName.isNotBlank()) {

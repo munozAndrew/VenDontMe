@@ -12,30 +12,5 @@ import com.example.vendontme.core.Screen
 @Composable
 fun SplitBillScreen(nav: NavController, groupId: String) {
 
-    Box(
-        modifier = Modifier.fillMaxSize().padding(20.dp),
-        contentAlignment = Alignment.Center
-    ) {
-
-        Column(horizontalAlignment = Alignment.CenterHorizontally) {
-
-            Text(
-                text = "Split Bill (Group $groupId)",
-                style = MaterialTheme.typography.headlineMedium
-            )
-
-            Spacer(Modifier.height(20.dp))
-
-            Button(
-                onClick = {
-                    nav.navigate(
-                        Screen.SplitSummary.route.replace("{groupId}", groupId)
-                    )
-                }
-            ) {
-                Text("View Summary")
-            }
-        }
-    }
 }
 

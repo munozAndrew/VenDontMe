@@ -64,10 +64,6 @@ class HomeViewModel(
         }
     }
 
-    /**
-     * Create a new group with the current user as admin
-     * @param onCreated callback with the created group ID
-     */
     fun createGroup(name: String, description: String?, onCreated: (String) -> Unit) {
         viewModelScope.launch {
             isCreatingGroup = true
