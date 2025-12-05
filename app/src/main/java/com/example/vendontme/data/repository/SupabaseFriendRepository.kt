@@ -67,6 +67,7 @@ class SupabaseFriendRepository(
                     filter {
                         eq("id", friendshipId)
                     }
+                    select()
                 }
                 .decodeSingle<Friend>()
 
